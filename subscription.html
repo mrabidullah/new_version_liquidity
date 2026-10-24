@@ -1,0 +1,17 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Subscription | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head><body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script><script>
+(function(){
+ var D=App.D,esc=App.esc;
+ App.mount({page:'subscription',title:'Subscription',roles:['client','multi','admin'],scoped:true,render:function(ctx){
+  var co=ctx.co,s=App.subs()[co.id],days=App.daysUntil(s.renewIso);
+  var overview='';
+  if(ctx.allowed.length>1){
+   overview='<section class="card mb-6 overflow-x-auto"><div class="border-b p-5"><h2 class="font-semibold">All your subscriptions</h2><p class="text-sm text-cap">One subscription per company. Pick a company to see its details below.</p></div><table class="tbl min-w-[560px]"><tr><th>Company</th><th>Plan</th><th>Renewal</th><th>Status</th><th></th></tr>'+ctx.allowed.map(function(i){var c=D.COMPANIES[i],x=App.subs()[i];return '<tr'+(i===co.id?' class="bg-hov"':'')+'><td><strong>'+esc(c.name)+'</strong></td><td>'+esc(x.plan)+'</td><td>'+esc(x.renewal)+'</td><td>'+App.badge(x.status[0],x.status[1])+'</td><td class="text-right">'+(i===co.id?'<span class="text-xs text-cap">Shown below</span>':'<button class="btn btn-s" data-pick="'+i+'">Show</button>')+'</td></tr>';}).join('')+'</table></section>';
+  }
+  return '<div class="mb-8 flex flex-wrap items-end justify-between gap-3"><div><h1 class="page-title">Subscription</h1><p class="mt-2 text-sm text-mut">Plan, service period and renewal details for '+esc(co.name)+'.</p></div><a class="btn" href="tickets.html?new=1&subject='+encodeURIComponent('Subscription change request · '+co.name)+'">Request a change</a></div>'+overview+
+   '<section class="mb-6 grid gap-4 md:grid-cols-4"><div class="card p-4"><div class="text-xs text-cap">PLAN</div><div class="mt-2 text-lg font-semibold">'+esc(s.plan)+'</div><div class="mt-1 text-xs text-cap">'+esc(s.term)+'</div></div><div class="card p-4"><div class="text-xs text-cap">STATUS</div><div class="mt-2">'+App.badge(s.status[0],s.status[1])+'</div><div class="mt-2 text-xs text-cap">'+(days<0?'Expired on '+esc(s.end):'Renews in '+days+' days')+'</div></div><div class="card p-4"><div class="text-xs text-cap">CURRENT TERM</div><div class="metric mt-2 !text-lg">'+esc(s.start)+'</div><div class="mt-1 text-xs text-cap">to '+esc(s.end)+'</div></div><div class="card p-4"><div class="text-xs text-cap">NEXT RENEWAL</div><div class="metric mt-2 !text-lg">'+esc(s.renewal)+'</div><div class="mt-1 text-xs text-cap">Annual renewal</div></div></section>'+
+   '<section class="card mb-6 overflow-hidden"><div class="border-b p-5"><h2 class="font-semibold">Included services</h2></div><table class="tbl"><tr><th>Service</th><th>Allowance</th><th>Status</th></tr>'+s.services.map(function(x){return '<tr><td>'+esc(x[0])+'</td><td>'+esc(x[1])+'</td><td>'+App.badge('ok','Active')+'</td></tr>';}).join('')+'</table></section>';
+ },after:function(ctx,main){
+  main.querySelectorAll('[data-pick]').forEach(function(b){b.addEventListener('click',function(){App.store.set('company',b.dataset.pick);ctx.refresh();});});
+ }});
+})();
+</script></body></html>

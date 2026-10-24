@@ -1,0 +1,21 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Company profile | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head>
+<body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script>
+<script>
+(function(){
+var D=App.D,esc=App.esc;
+var FIELDS=[['legal','Legal name','text'],['exch','Listed exchange','text'],['shares','Shares outstanding','text'],['float','Float','text'],['insiders','Held by insiders','text'],['institutions','Held by institutions','text'],['email','Email','email'],['phone','Phone','tel'],['address','Address','text']];
+App.mount({page:'company',title:'Company profile',roles:['client','multi','admin'],scoped:true,render:function(ctx){
+ var co=ctx.co,saved=App.store.get('profile-'+co.id,null),v=saved?saved.vals:null;
+ function val(k){return v&&v[k]!==undefined?v[k]:co[k];}
+ function inp(f,span){return '<div'+(span?' class="md:col-span-2"':'')+'><label class="lbl" for="f-'+f[0]+'">'+f[1]+'</label><input id="f-'+f[0]+'" name="'+f[0]+'" type="'+f[2]+'" class="inp" value="'+esc(val(f[0]))+'" autocomplete="off"></div>';}
+ var about=FIELDS.slice(0,6).map(function(f){return inp(f);}).join(''),contact=FIELDS.slice(6,8).map(function(f){return inp(f);}).join('')+inp(FIELDS[8],true);
+ return '<div class="mb-8 flex flex-wrap items-end justify-between gap-3"><div><h1 class="page-title">Company profile</h1><p class="mt-2 text-sm text-mut">Keep the profile and contact details for '+esc(co.name)+' up to date.</p></div>'+(saved?App.badge('warn','Changes under review'):App.badge('dr','Changes are reviewed'))+'</div>'+
+ '<div class="card mb-6 flex gap-3 bg-[var(--infb)] p-4 text-sm"><p class="text-mut">'+(saved?'Your last change was sent for review on '+esc(saved.at)+'. We will confirm once it is live.':'Changes are not applied instantly. We may ask for clarification before they go live.')+'</p></div>'+
+ '<form id="pf" class="space-y-6"><section class="card p-6"><h2 class="font-semibold">About company</h2><p class="mb-5 text-sm text-cap">Share structure and listing details shown to your investors.</p><div class="grid gap-x-5 gap-y-4 md:grid-cols-2">'+about+'</div></section><section class="card p-6"><h2 class="font-semibold">Contact info</h2><p class="mb-5 text-sm text-cap">How investors and Deltablock can reach your company.</p><div class="grid gap-x-5 gap-y-4 md:grid-cols-2">'+contact+'</div></section><div class="card sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 px-5 py-3"><span class="text-sm text-cap">Edits are sent for review before they go live.</span><div class="flex gap-3"><button type="button" id="discard" class="btn">Discard</button><button class="btn btn-p">Submit for review</button></div></div></form>';
+},after:function(ctx,main){
+ var co=ctx.co;
+ main.querySelector('#pf').addEventListener('submit',function(e){e.preventDefault();var vals={};FIELDS.forEach(function(f){vals[f[0]]=main.querySelector('#f-'+f[0]).value.trim();});App.store.set('profile-'+co.id,{vals:vals,at:App.today()});ctx.refresh();App.toast('Changes sent for review');window.scrollTo(0,0);});
+ main.querySelector('#discard').addEventListener('click',function(){App.store.set('profile-'+co.id,null);ctx.refresh();App.toast('Changes discarded');});
+}});
+})();
+</script></body></html>

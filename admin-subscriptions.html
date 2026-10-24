@@ -1,0 +1,22 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Subscriptions | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head>
+<body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script>
+<script>
+(function(){
+var D=App.D,esc=App.esc,PLANS=['Liquidity Essentials','Liquidity Plus','Investor Relations'],pick=null;
+App.mount({page:'admin-subscriptions',title:'Subscriptions',roles:['admin'],render:function(ctx){
+ var subs=App.subs(),cur=pick||D.ORDER[0],s=subs[cur];
+ return '<div class="mb-8"><h1 class="page-title">Subscriptions</h1><p class="mt-2 text-sm text-mut">Assign and maintain company subscription terms. Clients see these on their Subscription page.</p></div>'+
+ '<section class="card mb-6 p-5"><h2 class="font-semibold">Set subscription</h2><form id="sf"><div class="mt-4 grid gap-4 md:grid-cols-4"><label class="text-xs text-cap">Company<select id="s-co" class="inp mt-1">'+D.ORDER.map(function(i){return '<option value="'+i+'"'+(i===cur?' selected':'')+'>'+esc(D.COMPANIES[i].name)+'</option>';}).join('')+'</select></label><label class="text-xs text-cap">Plan<select id="s-plan" class="inp mt-1">'+PLANS.map(function(p){return '<option'+(p===s.plan?' selected':'')+'>'+p+'</option>';}).join('')+'</select></label><label class="text-xs text-cap">Start date<input id="s-start" class="inp mt-1" type="date" required value="'+App.addIso(s.renewIso,-365)+'"></label><label class="text-xs text-cap">Renewal date<input id="s-renew" class="inp mt-1" type="date" required value="'+s.renewIso+'"></label></div><div class="mt-4 flex justify-end"><button class="btn btn-p">Save subscription</button></div></form></section>'+
+ '<section class="card overflow-x-auto"><table class="tbl min-w-[640px]"><tr><th>Company</th><th>Plan</th><th>Term</th><th>Renewal</th><th>Status</th><th></th></tr>'+D.ORDER.map(function(i){var x=subs[i];return '<tr><td>'+esc(D.COMPANIES[i].name)+'</td><td>'+esc(x.plan)+'</td><td>Annual</td><td>'+esc(x.renewal)+'</td><td>'+App.badge(x.status[0],x.status[1])+'</td><td class="text-right"><button class="btn btn-s" data-edit="'+i+'">Edit</button></td></tr>';}).join('')+'</table></section>';
+},after:function(ctx,main){
+ main.querySelector('#s-co').addEventListener('change',function(e){pick=e.target.value;ctx.refresh();});
+ main.querySelectorAll('[data-edit]').forEach(function(b){b.addEventListener('click',function(){pick=b.dataset.edit;ctx.refresh();window.scrollTo(0,0);});});
+ main.querySelector('#sf').addEventListener('submit',function(e){e.preventDefault();
+  var id=main.querySelector('#s-co').value,start=main.querySelector('#s-start').value,renew=main.querySelector('#s-renew').value;
+  if(renew<=start){App.toast('Renewal date must be after the start date');return;}
+  var subs=App.subs(),x=subs[id],days=App.daysUntil(renew);
+  x.plan=main.querySelector('#s-plan').value;x.start=App.fmtDate(start);x.end=App.fmtDate(App.addIso(renew,-1));x.renewal=App.fmtDate(renew);x.renewIso=renew;x.status=days<0?['bad','Expired']:days<=60?['warn','Renews soon']:['ok','Active'];
+  App.saveSubs(subs);pick=id;ctx.refresh();App.toast('Subscription saved for '+D.COMPANIES[id].name);});
+}});
+})();
+</script></body></html>

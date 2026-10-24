@@ -1,0 +1,21 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Peer comparison | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head>
+<body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script>
+<script>
+(function(){
+var D=App.D,esc=App.esc,gi=0,added=[];
+App.mount({page:'comparison',title:'Peer comparison',roles:['client','multi','admin'],scoped:true,render:function(ctx){
+ var co=ctx.co,g=D.PEER_GROUPS[gi];
+ added=added.filter(function(i){return i!==co.id&&ctx.allowed.indexOf(i)>=0;});
+ var others=ctx.allowed.filter(function(i){return i!==co.id&&added.indexOf(i)<0;});
+ var pos=App.position(co.id,g),extra=added.map(function(i){return App.position(i,g);});
+ var head='<tr><th>Measure &middot; last 30 days</th><th>'+esc(co.name)+'</th>'+added.map(function(i){return '<th>'+esc(D.COMPANIES[i].name)+' <button class="ml-1 text-cap hover:text-ink" data-del="'+i+'" aria-label="Remove '+esc(D.COMPANIES[i].name)+'">&times;</button></th>';}).join('')+'<th>Peer median</th><th>Peer range</th><th>Position</th></tr>';
+ var rows=pos.map(function(p,i){return '<tr><td>'+esc(p.label)+' <span class="text-cap">('+p.unit+')</span></td><td class="mono">'+esc(p.value)+'</td>'+extra.map(function(e){return '<td class="mono">'+esc(e[i].value)+'</td>';}).join('')+'<td class="mono">'+esc(p.median)+'</td><td class="mono">'+esc(p.range)+'</td><td>'+App.badge(p.state[0],p.state[1])+'</td></tr>';}).join('');
+ var addCtl=ctx.allowed.length>1?'<div class="comparison-add-group"><label class="comparison-field comparison-company-field" for="add-co">Compare with<select id="add-co" class="inp mt-1"><option value="">Add company</option>'+others.map(function(i){return '<option value="'+i+'">'+esc(D.COMPANIES[i].name)+'</option>';}).join('')+'</select></label><button id="add" type="button" class="btn btn-p">Add company</button></div>':'';
+ return '<div class="mb-8"><h1 class="page-title">Peer comparison</h1><p class="mt-2 text-sm text-mut">Compare '+esc(co.name)+' with a selected peer group &middot; last 30 days</p></div><section class="comparison-toolbar mb-6"><div class="comparison-peer-group"><label class="comparison-field">Peer group<select id="grp" class="inp mt-1">'+D.PEER_GROUPS.map(function(x,i){return '<option value="'+i+'"'+(i===gi?' selected':'')+'>'+esc(x.name)+' &middot; '+x.n+' companies</option>';}).join('')+'</select></label><span class="bd dr comparison-peer-badge">Anonymised peer data</span></div>'+addCtl+'<a class="btn comparison-history-link" href="trades.html">View trade history</a></section><section class="card overflow-x-auto"><table class="tbl min-w-[680px]">'+head+rows+'</table></section><p class="mt-4 text-xs text-cap">Peer statistics are aggregated and anonymised. Company identifiers are not shown. A position within 10% of the median counts as near median.</p>';
+},after:function(ctx,main){
+ main.querySelector('#grp').addEventListener('change',function(e){gi=+e.target.value;ctx.refresh();});
+ var b=main.querySelector('#add');if(b)b.addEventListener('click',function(){var v=main.querySelector('#add-co').value;if(v){added.push(v);ctx.refresh();}});
+ main.querySelectorAll('[data-del]').forEach(function(x){x.addEventListener('click',function(){added=added.filter(function(i){return i!==x.dataset.del;});ctx.refresh();});});
+}});
+})();
+</script></body></html>

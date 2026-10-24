@@ -1,0 +1,47 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Market activity | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head>
+<body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script>
+<script>
+(function(){
+var D=App.D,esc=App.esc,rng=App.store.get('range','1M');
+var RANGES={'1W':7,'1M':30,'1Y':52};
+function chartData(id,r){
+ var base=App.series(id,364,5),n=RANGES[r],out=[],i;
+ if(r==='1Y'){for(i=0;i<52;i++){var seg=base.slice(i*7,i*7+7);out.push({p:seg[seg.length-1].p,v:seg.reduce(function(a,x){return a+x.v;},0)});}}
+ else out=base.slice(-n);
+ var end=new Date(D.TODAY+'T00:00:00Z');
+ out.forEach(function(x,i){var d=new Date(end);d.setUTCDate(d.getUTCDate()-(r==='1Y'?(out.length-1-i)*7:(out.length-1-i)));x.d=d;});
+ return out;
+}
+function chart(id,r){
+ var pts=chartData(id,r),W=600,L=48,R=580,n=pts.length,mn=Math.min.apply(null,pts.map(function(x){return x.p;})),mx=Math.max.apply(null,pts.map(function(x){return x.p;})),pad=(mx-mn)*0.15||0.01;mn-=pad;mx+=pad;
+ var vm=Math.max.apply(null,pts.map(function(x){return x.v;}));
+ function X(i){return L+(R-L)*(n===1?0:i/(n-1));}
+ function Y(p){return 14+(1-(p-mn)/(mx-mn))*98;}
+ var g='',i,line='';
+ for(i=0;i<4;i++){var pv=mx-(mx-mn)*i/3,y=Y(pv);g+='<line x1="'+L+'" x2="'+R+'" y1="'+y.toFixed(1)+'" y2="'+y.toFixed(1)+'" class="c-grid"/><text x="4" y="'+(y+3).toFixed(1)+'" class="c-txt">'+pv.toFixed(3)+'</text>';}
+ pts.forEach(function(x,i){line+=(i?'L':'M')+X(i).toFixed(1)+','+Y(x.p).toFixed(1);});
+ var area=line+'L'+R+',120L'+L+',120z',bw=Math.max(3,Math.min(14,(R-L)/n*0.6)),bars='';
+ pts.forEach(function(x,i){var h=Math.max(2,x.v/vm*52);bars+='<rect x="'+(X(i)-bw/2).toFixed(1)+'" y="'+(198-h).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+h.toFixed(1)+'" rx="1.5" class="c-bar"/>';});
+ var labels='',step=r==='1W'?1:r==='1M'?5:9,f=new Intl.DateTimeFormat('en-GB',r==='1Y'?{month:'short'}:{day:'2-digit',month:'short',timeZone:'UTC'});
+ pts.forEach(function(x,i){if(i%step===0||i===n-1){if(i===n-1&&i%step!==0&&n-1-(Math.floor((n-1)/step)*step)<step/2)return;labels+='<text x="'+X(i).toFixed(1)+'" y="218" text-anchor="middle" class="c-txt">'+f.format(x.d)+'</text>';}});
+ return '<svg viewBox="0 0 600 232" class="w-full" role="img" aria-label="Price per share from '+pts[0].p.toFixed(3)+' to '+pts[n-1].p.toFixed(3)+' euro, with daily volume"><style>.c-grid{stroke:var(--line)}</style>'+g+'<path d="'+area+'" class="c-area"/><path d="'+line+'" class="c-line"/><line x1="'+L+'" x2="'+R+'" y1="145" y2="145" class="c-grid"/><text x="'+L+'" y="137" class="c-txt">VOLUME · SHARES TRADED</text>'+bars+'<line x1="'+L+'" x2="'+R+'" y1="198" y2="198" class="c-grid"/>'+labels+'</svg>';
+}
+function donut(share,label,sub){var dash=(share/100*289).toFixed(1);return '<article class="card p-5 md:p-6"><h3 class="font-semibold">'+label+'</h3><p class="mb-5 text-sm text-cap">'+sub+'</p><div class="flex flex-wrap items-center gap-6"><div class="relative shrink-0"><svg viewBox="0 0 120 120" class="h-32 w-32 -rotate-90" role="img" aria-label="Deltablock '+share+' percent of volume"><circle cx="60" cy="60" r="46" fill="none" stroke-width="16" class="c-grid"/><circle cx="60" cy="60" r="46" fill="none" stroke-width="16" stroke-dasharray="'+dash+' 289" stroke-linecap="round" stroke="#F2B705"/></svg><div class="absolute inset-0 grid place-items-center text-lg font-semibold">'+share+'%</div></div><ul class="space-y-2 text-sm"><li class="flex items-center gap-2"><i class="dot" style="background:#F2B705"></i>Deltablock <b class="ml-2">'+share+'%</b></li><li class="flex items-center gap-2"><i class="dot border bg-line"></i>Rest of market <b class="ml-2">'+(100-share).toFixed(1)+'%</b></li></ul></div></article>';}
+App.mount({page:'market',title:'Market activity',roles:['client','multi','admin'],scoped:true,render:function(ctx){
+ var co=ctx.co,K=D.KPI[co.id],day=App.series(co.id,30,9),last=day[day.length-1].s,sprOk=function(v){return v<=co.sprTarget;};
+ return '<div class="mb-8"><h1 class="page-title">Market activity</h1><p class="mt-2 text-sm text-mut">Price, volume, Deltablock participation and spread for '+esc(co.name)+' &middot; '+esc(co.exch)+' &middot; illustrative sample data</p></div>'+
+ '<section id="chart-card" class="card mb-8 p-5 md:p-6" aria-labelledby="pv"><div class="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 id="pv" class="font-semibold">Price and volume</h2><div class="mt-2 flex flex-wrap items-center gap-5 text-xs text-mut"><span class="inline-flex items-center gap-2"><i class="h-0.5 w-4" style="background:var(--chart)"></i>Price per share (&euro;)</span><span class="inline-flex items-center gap-2"><i class="h-3 w-3 rounded-sm bg-cap/60"></i>Volume (shares)</span></div></div><div class="flex flex-wrap items-center gap-2"><div class="seg" role="group" aria-label="Range">'+Object.keys(RANGES).map(function(r){return '<button type="button" data-r="'+r+'" aria-pressed="'+(r===rng)+'">'+r+'</button>';}).join('')+'</div><button type="button" class="btn btn-s" data-save="png">Save PNG</button><button type="button" class="btn btn-s" data-save="pdf">Print / PDF</button></div></div><div class="overflow-x-auto"><div id="plot" class="min-w-[560px]">'+chart(co.id,rng)+'</div></div></section>'+
+ '<section class="mb-8" aria-labelledby="ptt"><h2 id="ptt" class="mb-3 text-xl font-semibold">Deltablock participation</h2><div class="grid gap-5 md:grid-cols-2">'+donut(K['24h'].share,'Last 24 hours','Share of total volume')+donut(K.since.share,'Since contract start','Share of total volume')+'</div><div class="mt-5 grid gap-4 md:grid-cols-2"><article class="card p-5"><div class="metric-label">Deltablock volume &middot; last 24 hours</div><div class="metric mt-2">'+App.num(Math.round(K['24h'].vol*K['24h'].share/100))+' <small class="metric-unit">shares</small></div></article><article class="card p-5"><div class="metric-label">Active trading partners &middot; last 24 hours</div><div class="metric mt-2">'+K['24h'].traders+' of '+K.since.traders+'</div></article></div></section>'+
+ '<section aria-labelledby="dst"><h2 id="dst" class="mb-3 text-xl font-semibold">Daily average spread</h2><div class="grid gap-4 md:grid-cols-2"><div class="card flex items-end justify-between p-5"><div><div class="text-xs font-medium text-cap">Last day</div><div class="metric mt-1">'+last.toFixed(1)+' <small class="metric-unit">bps</small></div></div>'+App.badge(sprOk(last)?'ok':'warn',sprOk(last)?'Within target':'Above target')+'</div><div class="card flex items-end justify-between p-5"><div><div class="text-xs font-medium text-cap">Last 30 days</div><div class="metric mt-1">'+co.spread30.toFixed(1)+' <small class="metric-unit">bps</small></div></div>'+App.badge(sprOk(co.spread30)?'ok':'warn',sprOk(co.spread30)?'Within target':'Above target')+'</div></div><p class="mt-3 text-xs text-cap">Target: at most '+co.sprTarget+' bps.</p></section>';
+},after:function(ctx,main){
+ main.querySelectorAll('[data-r]').forEach(function(b){b.addEventListener('click',function(){rng=b.dataset.r;App.store.set('range',rng);ctx.refresh();});});
+ main.querySelector('[data-save=pdf]').addEventListener('click',function(){window.print();});
+ main.querySelector('[data-save=png]').addEventListener('click',function(){
+  var svg=main.querySelector('#plot svg').cloneNode(true);
+  var st=document.createElementNS('http://www.w3.org/2000/svg','style');st.textContent='.c-grid{stroke:#E8E6E0}.c-txt{fill:#5F6B80;font:10px Inter,sans-serif}.c-line{stroke:#172B5E;fill:none;stroke-width:2}.c-area{fill:#172B5E;opacity:.12}.c-bar{fill:#5F6B80;opacity:.55}';
+  var bg=document.createElementNS('http://www.w3.org/2000/svg','rect');bg.setAttribute('width','600');bg.setAttribute('height','232');bg.setAttribute('fill','#fff');svg.insertBefore(bg,svg.firstChild);svg.insertBefore(st,svg.firstChild);svg.setAttribute('xmlns','http://www.w3.org/2000/svg');
+  var img=new Image();img.onload=function(){var c=document.createElement('canvas');c.width=1200;c.height=464;c.getContext('2d').drawImage(img,0,0,1200,464);var a=document.createElement('a');a.download='liquidity-'+ctx.co.code.toLowerCase()+'-'+rng.toLowerCase()+'.png';a.href=c.toDataURL('image/png');a.click();};
+  img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(new XMLSerializer().serializeToString(svg));});
+}});
+})();
+</script></body></html>

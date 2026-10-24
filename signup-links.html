@@ -1,0 +1,40 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Client sign-up links | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head><body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script><script>
+(function(){
+ var D=App.D,esc=App.esc;
+ var fresh=null;
+ var STATUS={unused:['inf','Unused'],used:['ok','Used'],expired:['bad','Expired']};
+ function url(l){return App.absUrl('signup.html?t='+encodeURIComponent(l.token));}
+ function mk(name,email,companies,days){return {id:'L'+Date.now(),token:App.token(email.split('@')[0].replace(/[^a-z0-9]/gi,'').slice(0,8).toLowerCase()||'link'),name:name,email:email,companies:companies,created:App.today(),expires:App.addDays(days),status:'unused'};}
+ App.mount({page:'signup-links',title:'Client sign-up links',roles:['admin'],render:function(ctx){
+  var links=App.links(),pre={name:App.qs('name')||'',email:App.qs('email')||''};
+  var boxes=D.ORDER.map(function(i){var c=D.COMPANIES[i];return '<label class="check-row"><input type="checkbox" name="lk-co" value="'+i+'"> '+esc(c.name)+' <span class="ml-auto text-xs text-cap">'+esc(c.exch)+'</span></label>';}).join('');
+  var rows=links.map(function(l){var state=l.status==='unused'&&Date.parse(l.expires)<Date.parse(D.TODAY)?'expired':l.status,st=STATUS[state];
+   var act='<div class="flex flex-wrap justify-end gap-1.5">';
+   if(state==='unused')act+='<button class="btn btn-s" data-copy="'+l.id+'">Copy link</button><a class="btn btn-s" href="'+url(l)+'" target="_blank" rel="noopener">Preview</a>';
+   if(state!=='used')act+='<button class="btn btn-s btn-p" data-resend="'+l.id+'">Send new link</button>';
+   if(state==='unused')act+='<button class="btn btn-s btn-d" data-revoke="'+l.id+'">Revoke</button>';
+   if(state==='used')act+='<span class="text-xs text-cap">Account created</span>';
+   return '<tr><td><div class="font-medium">'+esc(l.name||'—')+'</div><div class="text-xs text-cap">'+esc(l.email)+'</div></td><td>'+App.chips(l.companies)+'</td><td class="whitespace-nowrap">'+esc(l.created)+'</td><td class="whitespace-nowrap">'+esc(l.expires)+'</td><td>'+App.badge(st[0],st[1])+(l.usedOn?'<div class="mt-0.5 text-xs text-cap">'+esc(l.usedOn)+'</div>':'')+'</td><td class="text-right">'+act+'</div></td></tr>';}).join('');
+  var result=fresh?'<div class="card mb-6 border-[#F2B705] p-5"><div class="flex flex-wrap items-center justify-between gap-3"><div><div class="font-semibold">Sign-up link ready for '+esc(fresh.email)+'</div><p class="text-sm text-cap">In the live site this is emailed to them. For the prototype, copy it or open it to see what they see.</p></div><div class="flex gap-2"><button class="btn btn-p" id="copy-fresh">Copy link</button><a class="btn" href="'+url(fresh)+'" target="_blank" rel="noopener">Open</a></div></div><input class="inp mono mt-3 !text-xs" readonly value="'+esc(url(fresh))+'" aria-label="Sign-up link"></div>':'';
+  return '<div class="mb-8"><h1 class="page-title">Client sign-up links</h1><p class="mt-2 text-sm text-mut">Clients join with a personal link. You choose which companies it gives access to; they only pick their name and password.</p></div>'+result+
+   '<section class="card mb-6 p-5"><h2 class="font-semibold">Create a link</h2><form id="lk" class="mt-4 grid gap-4 md:grid-cols-2"><div><label class="lbl" for="lk-name">Name <span class="font-normal text-cap">(optional, they can change it)</span></label><input id="lk-name" class="inp" value="'+esc(pre.name)+'"></div><div><label class="lbl" for="lk-email">Email</label><input id="lk-email" type="email" class="inp" required value="'+esc(pre.email)+'"></div>'+
+   '<fieldset><legend class="lbl">Companies this link gives access to</legend><div class="space-y-2">'+boxes+'</div><p class="mt-2 text-xs text-cap">One company makes a single-company client. Several make a multi-company client.</p></fieldset><div><label class="lbl" for="lk-days">Link valid for</label><select id="lk-days" class="inp"><option value="7">7 days</option><option value="14" selected>14 days</option><option value="30">30 days</option></select></div>'+
+   '<div class="flex justify-end md:col-span-2"><button class="btn btn-p">Create link</button></div></form></section>'+
+   '<section class="card overflow-x-auto"><div class="border-b px-5 py-4 font-semibold">All links <span class="font-normal text-cap">('+links.length+')</span></div><table class="tbl min-w-[860px]"><tr><th>Recipient</th><th>Companies</th><th>Created</th><th>Expires</th><th>Status</th><th class="text-right">Actions</th></tr>'+rows+'</table></section>';
+ },after:function(ctx,main){
+  var links=App.links();
+  function find(id){return links.filter(function(l){return l.id===id;})[0];}
+  main.querySelector('#lk').addEventListener('submit',function(e){e.preventDefault();
+   var cos=[].slice.call(main.querySelectorAll('[name=lk-co]:checked')).map(function(c){return c.value;});
+   if(!cos.length){App.toast('Choose at least one company');return;}
+   var l=mk(main.querySelector('#lk-name').value.trim(),main.querySelector('#lk-email').value.trim(),cos,+main.querySelector('#lk-days').value);
+   links.unshift(l);App.saveLinks(links);fresh=l;ctx.refresh();window.scrollTo(0,0);App.toast('Link created for '+l.email);});
+  main.querySelectorAll('[data-copy]').forEach(function(b){b.addEventListener('click',function(){App.copy(url(find(b.dataset.copy)));});});
+  main.querySelectorAll('[data-revoke]').forEach(function(b){b.addEventListener('click',function(){find(b.dataset.revoke).status='expired';App.saveLinks(links);ctx.refresh();App.toast('Link revoked');});});
+  main.querySelectorAll('[data-resend]').forEach(function(b){b.addEventListener('click',function(){
+   var o=find(b.dataset.resend),n=mk(o.name,o.email,o.companies,14);if(o.status==='unused')o.status='expired';
+   links.unshift(n);App.saveLinks(links);fresh=n;ctx.refresh();window.scrollTo(0,0);App.toast('New link created for '+o.email);});});
+  var cf=main.querySelector('#copy-fresh');if(cf)cf.addEventListener('click',function(){App.copy(url(fresh));});
+ }});
+})();
+</script></body></html>

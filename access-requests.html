@@ -1,0 +1,23 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Access requests | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head><body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script><script>
+(function(){
+ var esc=App.esc,filter='pending';
+ var ST={pending:['warn','Pending'],approved:['ok','Approved'],rejected:['bad','Rejected']};
+ App.mount({page:'access-requests',title:'Access requests',roles:['admin'],render:function(ctx){
+  var all=App.requests(),list=all.filter(function(r){return filter==='all'||r.status===filter;});
+  function n(s){return all.filter(function(r){return s==='all'||r.status===s;}).length;}
+  var rows=list.map(function(r){var st=ST[r.status],act='';
+   if(r.status==='pending')act='<button class="btn btn-s btn-p" data-approve="'+r.id+'">Approve</button> <button class="btn btn-s btn-d" data-reject="'+r.id+'">Reject</button>';
+   else if(r.status==='approved')act='<a class="btn btn-s" href="signup-links.html?name='+encodeURIComponent(r.name)+'&email='+encodeURIComponent(r.email)+'">Create sign-up link</a>';
+   return '<tr><td><div class="font-medium">'+esc(r.name)+'</div><div class="text-xs text-cap">'+esc(r.email)+'</div></td><td>'+esc(r.company)+'</td><td class="max-w-xs text-mut">'+esc(r.message||'—')+'</td><td class="whitespace-nowrap">'+esc(r.date)+'</td><td>'+App.badge(st[0],st[1])+'</td><td class="whitespace-nowrap text-right">'+act+'</td></tr>';}).join('');
+  return '<div class="mb-8 flex flex-wrap items-end justify-between gap-3"><div><h1 class="page-title">Access requests</h1><p class="mt-2 text-sm text-mut">People who asked for access from the login page. Approving does not create an account: send them a personal sign-up link next.</p></div><div class="seg" role="group" aria-label="Filter">'+['pending','approved','rejected','all'].map(function(s){return '<button type="button" data-f="'+s+'" aria-pressed="'+(s===filter)+'">'+s[0].toUpperCase()+s.slice(1)+' ('+n(s)+')</button>';}).join('')+'</div></div>'+
+   '<section class="card overflow-x-auto"><table class="tbl min-w-[860px]"><tr><th>Person</th><th>Company</th><th>Message</th><th>Received</th><th>Status</th><th class="text-right">Actions</th></tr>'+rows+'</table>'+(list.length?'':'<p class="p-5 text-sm text-cap">No requests in this list.</p>')+'</section>';
+ },after:function(ctx,main){
+  var all=App.requests();
+  function set(id,s){all.forEach(function(r){if(r.id===id)r.status=s;});App.saveRequests(all);}
+  main.querySelectorAll('[data-f]').forEach(function(b){b.addEventListener('click',function(){filter=b.dataset.f;ctx.refresh();});});
+  main.querySelectorAll('[data-approve]').forEach(function(b){b.addEventListener('click',function(){set(b.dataset.approve,'approved');filter='approved';ctx.refresh();App.toast('Approved. Now create a sign-up link for them.');});});
+  main.querySelectorAll('[data-reject]').forEach(function(b){b.addEventListener('click',function(){set(b.dataset.reject,'rejected');ctx.refresh();App.toast('Request rejected');});});
+  var nb=document.querySelector('.navcount');if(nb){var c=App.pending();if(c)nb.textContent=c;else nb.remove();}
+ }});
+})();
+</script></body></html>

@@ -1,0 +1,68 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Team | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head><body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script><script>
+(function(){
+ var D=App.D,esc=App.esc;
+ var editId=null,removeId=null;
+ function initials(n){return n.split(' ').map(function(x){return x[0];}).slice(0,2).join('').toUpperCase();}
+ function roleLabel(p){return p.type==='guest'?'Guest (read-only)':p.owner?'Account owner':'Colleague';}
+ function checks(ids,name,checked){return ids.map(function(i){return '<label class="check-row"><input type="checkbox" name="'+name+'" value="'+i+'"'+(checked&&checked.indexOf(i)>=0?' checked':'')+'> '+esc(D.COMPANIES[i].name)+' <span class="ml-auto text-xs text-cap">'+esc(D.COMPANIES[i].exch)+'</span></label>';}).join('');}
+ function link(p){return App.absUrl((p.type==='guest'?'guest-invite.html':'signup.html')+'?t='+encodeURIComponent(p.token));}
+ function team(ctx){return App.people().filter(function(p){return p.tenant===ctx.s.tenant&&p.type!=='admin';});}
+
+ App.mount({page:'team',title:'Team',roles:['client','multi'],render:function(ctx){
+  var all=team(ctx),owner=all.filter(function(p){return p.owner;})[0],mine=ctx.s.companies,own=ctx.owner;
+  var rows=all.map(function(p){
+   var pend=p.status==='pending';
+   var act='';
+   if(own&&!p.owner){act=(pend?'<button class="btn btn-s" data-copy="'+p.id+'">Copy invite link</button> ':'<button class="btn btn-s" data-edit="'+p.id+'">Edit access</button> ')+'<button class="btn btn-s btn-d" data-remove="'+p.id+'">'+(pend?'Cancel invite':'Remove')+'</button>';}
+   else if(own&&p.owner)act='<span class="text-xs text-cap">You</span>';
+   return '<tr><td><div class="flex items-center gap-3"><span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-hov text-xs font-semibold text-mut">'+esc(initials(p.name))+'</span><div><div class="font-medium">'+esc(p.name)+'</div><div class="text-xs text-cap">'+esc(p.email)+'</div></div></div></td><td>'+esc(roleLabel(p))+'</td><td>'+App.chips(p.companies)+'</td><td>'+(pend?App.badge('warn','Invitation sent'):App.badge('ok','Active'))+'</td>'+(own?'<td class="whitespace-nowrap text-right">'+act+'</td>':'')+'</tr>';
+  }).join('');
+  var rr=App.ROLES[ctx.s.role],isDemo=ctx.s.email===rr.email||(rr.member&&ctx.s.email===rr.member.email);
+  var demo=!isDemo?'':'<div class="card mb-6 flex flex-wrap items-center justify-between gap-3 border-dashed p-3 text-xs text-cap"><span>Prototype: preview this page as</span><div class="seg" role="group" aria-label="Preview as"><button type="button" data-persona="owner" aria-pressed="'+own+'">Account owner</button><button type="button" data-persona="member" aria-pressed="'+!own+'">Team member</button></div></div>';
+  var invite='';
+  if(own){
+   invite='<section class="card mb-6 p-5"><h2 class="font-semibold">Invite someone</h2><p class="mb-4 text-sm text-cap">Choose what they can do and which of your companies they get. Guests are read-only.</p><form id="invite" class="grid gap-4 md:grid-cols-2"><div><label class="lbl" for="iv-name">Name <span class="font-normal text-cap">(optional)</span></label><input id="iv-name" class="inp" autocomplete="off"></div><div><label class="lbl" for="iv-email">Email</label><input id="iv-email" type="email" class="inp" required autocomplete="off"></div>'+
+    '<fieldset><legend class="lbl">Role</legend><div class="space-y-2"><label class="check-row"><input type="radio" name="iv-type" value="colleague" checked> <span><b>Colleague</b><span class="block text-xs text-cap">Full client access to the chosen companies. Can view the team.</span></span></label><label class="check-row"><input type="radio" name="iv-type" value="guest"> <span><b>Guest</b><span class="block text-xs text-cap">Read-only: overview, reports and trade history.</span></span></label></div></fieldset>'+
+    '<fieldset><legend class="lbl">Companies</legend><div class="space-y-2">'+checks(mine,'iv-co',mine.length===1?mine:[])+'</div></fieldset>'+
+    '<div class="flex items-center justify-between gap-3 md:col-span-2"><p class="text-xs text-cap">They receive a personal link by email. In this prototype you can copy the link from the list below.</p><button class="btn btn-p">Send invitation</button></div></form></section>';
+  } else {
+   invite='<div class="card mb-6 flex gap-3 bg-[var(--infb)] p-4 text-sm"><p class="text-mut">You can see who has access, but only <b class="text-ink">'+esc(owner?owner.name:'the account owner')+'</b> (account owner) can invite people or change their access.</p></div>';
+  }
+  return '<div class="mb-8"><h1 class="page-title">Team</h1><p class="mt-2 text-sm text-mut">People who can see '+(mine.length>1?'your companies':esc(D.COMPANIES[mine[0]].name))+' in Deltablock.</p></div>'+demo+invite+
+   '<section class="card overflow-x-auto"><div class="border-b px-5 py-4 font-semibold">Your team <span class="font-normal text-cap">('+all.length+')</span></div><table class="tbl min-w-[720px]"><tr><th>Person</th><th>Role</th><th>Companies</th><th>Status</th>'+(own?'<th class="text-right">Actions</th>':'')+'</tr>'+rows+'</table></section>';
+ },extra:function(ctx){
+  var mine=ctx.s.companies;
+  return '<div id="edit-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="et"><form id="edit-form" class="card w-full max-w-md"><div class="border-b px-6 py-4"><h2 id="et" class="font-semibold">Edit access</h2><p id="edit-who" class="text-sm text-cap"></p></div><div class="space-y-2 p-6" id="edit-checks">'+checks(mine,'ed-co',[])+'</div><div class="flex justify-end gap-2 border-t px-6 py-4"><button type="button" class="btn" data-close>Cancel</button><button class="btn btn-p">Save access</button></div></form></div>'+
+   '<div id="remove-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="rt"><div class="card w-full max-w-md"><div class="border-b px-6 py-4"><h2 id="rt" class="font-semibold">Remove access</h2></div><p id="remove-text" class="p-6 text-sm text-mut"></p><div class="flex justify-end gap-2 border-t px-6 py-4"><button type="button" class="btn" data-close>Cancel</button><button id="remove-go" class="btn btn-p">Remove</button></div></div></div>';
+ },after:function(ctx,main,ov){
+  var people=App.people();
+  function find(id){return people.filter(function(p){return p.id===id;})[0];}
+  main.querySelectorAll('[data-persona]').forEach(function(b){b.addEventListener('click',function(){
+   var r=App.ROLES[ctx.s.role===undefined?'client':ctx.s.role],s=Object.assign({},ctx.s);
+   if(b.dataset.persona==='member'){s.owner=false;s.name=r.member.name;s.email=r.member.email;s.companies=r.member.companies.slice();}
+   else{s.owner=true;s.name=r.name;s.email=r.email;s.companies=r.companies.slice();}
+   App.setSession(s);location.reload();});});
+  var form=main.querySelector('#invite');
+  if(form)form.addEventListener('submit',function(e){
+   e.preventDefault();
+   var email=main.querySelector('#iv-email').value.trim(),type=form.querySelector('[name=iv-type]:checked').value,cos=[].slice.call(form.querySelectorAll('[name=iv-co]:checked')).map(function(c){return c.value;});
+   if(!cos.length){App.toast('Choose at least one company');return;}
+   if(people.some(function(p){return p.email.toLowerCase()===email.toLowerCase();})){App.toast('That email already has access or an invitation');return;}
+   var name=main.querySelector('#iv-name').value.trim()||email.split('@')[0];
+   var p={id:'p'+Date.now(),name:name,email:email,type:type,companies:cos,tenant:ctx.s.tenant,status:'pending',via:'Team invite',invitedBy:ctx.s.name,token:App.token(type)};
+   people.push(p);App.savePeople(people);App.toast('Invitation sent to '+email);ctx.refresh();
+  });
+  main.querySelectorAll('[data-copy]').forEach(function(b){b.addEventListener('click',function(){App.copy(link(find(b.dataset.copy)));});});
+  main.querySelectorAll('[data-edit]').forEach(function(b){b.addEventListener('click',function(){
+   var p=find(b.dataset.edit);editId=p.id;ov.querySelector('#edit-who').textContent=p.name+' · '+roleLabel(p);
+   ov.querySelectorAll('[name=ed-co]').forEach(function(c){c.checked=p.companies.indexOf(c.value)>=0;});App.openModal('edit-modal');});});
+  ov.querySelector('#edit-form').addEventListener('submit',function(e){e.preventDefault();
+   var cos=[].slice.call(ov.querySelectorAll('[name=ed-co]:checked')).map(function(c){return c.value;});
+   if(!cos.length){App.toast('Choose at least one company');return;}
+   find(editId).companies=cos;App.savePeople(people);App.closeModals();App.toast('Access updated');ctx.refresh();});
+  main.querySelectorAll('[data-remove]').forEach(function(b){b.addEventListener('click',function(){
+   var p=find(b.dataset.remove);removeId=p.id;ov.querySelector('#remove-text').textContent=(p.status==='pending'?'Cancel the invitation for ':'Remove access for ')+p.name+' ('+p.email+')?';App.openModal('remove-modal');});});
+  ov.querySelector('#remove-go').addEventListener('click',function(){var p=find(removeId);App.savePeople(people.filter(function(x){return x.id!==removeId;}));App.closeModals();App.toast(p.name+' removed');ctx.refresh();});
+ }});
+})();
+</script></body></html>
